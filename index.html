@@ -4,36 +4,13 @@
   <meta charset="UTF-8">
   <title>FightCamp Manager</title>
 
-  <!-- SUPABASE (APENAS UMA VEZ) -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
   <style>
-    body {
-      font-family: Arial;
-      background: #111;
-      color: #fff;
-      padding: 20px;
-    }
-
-    input, button {
-      margin: 5px;
-      padding: 10px;
-      border-radius: 6px;
-      border: none;
-    }
-
-    button {
-      background: #00c853;
-      color: #fff;
-      cursor: pointer;
-    }
-
-    .card {
-      background: #1e1e1e;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 8px;
-    }
+    body { font-family: Arial; background: #111; color: #fff; padding: 20px; }
+    input, button { margin: 5px; padding: 10px; border-radius: 6px; border: none; }
+    button { background: #00c853; color: #fff; cursor: pointer; }
+    .card { background: #1e1e1e; padding: 10px; margin-top: 10px; border-radius: 8px; }
   </style>
 </head>
 
@@ -44,65 +21,78 @@
 <input id="nome" placeholder="Nome">
 <input id="peso" placeholder="Peso">
 <input id="meta" placeholder="Meta">
-<button id="btnSalvar">Salvar</button>
+<button onclick="salvar()">Salvar</button>
 
 <div id="lista"></div>
 
 <script>
-  // CRIA CLIENTE (UMA VEZ)
-  const client = window.supabase.createClient(
-    "https://dvqomwivyrjckkdyblof.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2cW9td2l2eXJqY2trZHlibG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzUwOTEsImV4cCI6MjA5MjgxMTA5MX0.PPnlsqG__lUbw_SCOGzCPgo95GgbZD5zSJbVg3scQLs"
-  );
+const client = window.supabase.createClient(
+  "https://dvqomwivyrjckkdyblof.supabase.co",
+  "SUA_KEY_COMPLETA_AQUI"
+);
 
-  // BOTÃO
-  document.getElementById("btnSalvar").addEventListener("click", async () => {
+async function salvar() {
+  const nome = document.getElementById("nome").value;
+  const peso = parseFloat(document.getElementById("peso").value);
+  const meta = parseFloat(document.getElementById("meta").value);
 
-    const nome = document.getElementById("nome").value;
-    const peso = parseFloat(document.getElementById("peso").value);
-    const meta = parseFloat(document.getElementById("meta").value);
+  const { error } = await client.from("atletas").insert([
+    { nome, peso_atual: peso, peso_meta: meta }
+  ]);
 
-    if (!nome || !peso || !meta) {
-      alert("Preenche tudo 😅");
-      return;
-    }
-
-    const { error } = await client.from("atletas").insert([
-      { nome: nome, peso_atual: peso, peso_meta: meta }
-    ]);
-
-    if (error) {
-      alert("Erro: " + error.message);
-      console.log(error);
-      return;
-    }
-
-    alert("Salvou 🔥");
-
-    carregar();
-  });
-
-  // CARREGAR DADOS
-  async function carregar() {
-    const { data, error } = await client.from("atletas").select("*");
-
-    if (error) {
-      console.log(error);
-      return;
-    }
-
-    const lista = document.getElementById("lista");
-    lista.innerHTML = "";
-
-    data.forEach(a => {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerText = a.nome + " - " + a.peso_atual + "kg";
-      lista.appendChild(div);
-    });
+  if (error) {
+    alert("Erro: " + error.message);
+    return;
   }
 
   carregar();
+}
+
+async function marcarPresenca(id) {
+  const { error } = await client.from("presencas").insert([
+    { atleta_id: id }
+  ]);
+
+  if (error) {
+    alert("Já marcou hoje 👀");
+    return;
+  }
+
+  carregar();
+}
+
+async function carregar() {
+  const { data } = await client.from("atletas").select("*");
+
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
+
+  for (const a of data) {
+
+    const { data: pres } = await client
+      .from("presencas")
+      .select("*")
+      .eq("atleta_id", a.id);
+
+    const total = pres ? pres.length : 0;
+    const meta = 70;
+    const progresso = Math.round((total/meta)*100);
+
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <b>${a.nome}</b><br>
+      Peso: ${a.peso_atual}kg<br>
+      Treinos: ${total}/${meta} (${progresso}%)<br>
+      <button onclick="marcarPresenca('${a.id}')">Treinei hoje</button>
+    `;
+
+    lista.appendChild(div);
+  }
+}
+
+carregar();
 </script>
 
 </body>
