@@ -1,67 +1,4 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <title>FightCamp Manager</title>
-
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-  <style>
-    body { font-family: Arial; background: #111; color: #fff; padding: 20px; }
-    input, button { margin: 5px; padding: 10px; border-radius: 6px; border: none; }
-    button { background: #00c853; color: #fff; cursor: pointer; }
-    .card { background: #1e1e1e; padding: 10px; margin-top: 10px; border-radius: 8px; }
-    .hidden { display: none; }
-  </style>
-</head>
-
-<body>
-
-<h1>🥋 FightCamp Manager</h1>
-
-<h2>Login</h2>
-<input id="email" placeholder="Email">
-<input id="senha" type="password" placeholder="Senha">
-<button onclick="login()">Entrar</button>
-
-<hr>
-
-<div id="adminArea">
-
-<h2>Cadastro</h2>
-<input id="nome" placeholder="Nome">
-<input id="peso" placeholder="Peso">
-<input id="meta" placeholder="Meta">
-<button onclick="salvar()">Salvar</button>
-
-<hr>
-
-<h2>Importar Presenças</h2>
-<input type="file" id="fileInput">
-<button onclick="importarCSV()">Importar CSV</button>
-
-<hr>
-
-<h2>Lançamento Manual</h2>
-<input id="nomeManual" placeholder="Nome">
-<button onclick="presencaManual()">Adicionar Presença</button>
-
-<hr>
-
-<h2>Adicionar Grau</h2>
-<input id="nomeGrau" placeholder="Nome">
-<input id="grau" placeholder="Grau">
-<button onclick="addGrau()">Salvar Grau</button>
-
-</div>
-
-<hr>
-
-<div id="lista"></div>
-
-<script>
-
-const ADMIN_EMAIL = "SEU_EMAIL_AQUI"; // <<< COLOCA SEU EMAIL
+const ADMIN_EMAIL = "scosta.vanessa@gmail.com";
 
 const client = window.supabase.createClient(
   "https://dvqomwivyrjckkdyblof.supabase.co",
@@ -70,6 +7,20 @@ const client = window.supabase.createClient(
 
 let usuarioLogado = null;
 
+// 🔐 mantém login ativo
+async function init() {
+  const { data } = await client.auth.getUser();
+
+  if (data.user) {
+    usuarioLogado = data.user;
+    aplicarPermissoes();
+    carregar();
+  }
+}
+
+init();
+
+// 🔐 login
 async function login() {
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
@@ -89,16 +40,19 @@ async function login() {
   alert("Logado 🔥");
 }
 
+// 🔐 verifica admin
 function isAdmin() {
   return usuarioLogado?.email === ADMIN_EMAIL;
 }
 
+// 🎯 controla acesso
 function aplicarPermissoes() {
   if (!isAdmin()) {
-    document.getElementById("adminArea").classList.add("hidden");
+    document.getElementById("adminArea").style.display = "none";
   }
 }
 
+// 👤 cadastro
 async function salvar() {
   if (!isAdmin()) return;
 
@@ -113,6 +67,7 @@ async function salvar() {
   carregar();
 }
 
+// 🥋 presença manual
 async function presencaManual() {
   if (!isAdmin()) return;
 
@@ -131,11 +86,13 @@ async function presencaManual() {
   carregar();
 }
 
+// 🥋 botão treino
 async function marcarPresenca(id) {
   await client.from("presencas").insert([{ atleta_id: id }]);
   carregar();
 }
 
+// 📥 CSV
 async function importarCSV() {
   if (!isAdmin()) return;
 
@@ -165,6 +122,7 @@ async function importarCSV() {
   carregar();
 }
 
+// 🎖 grau
 async function addGrau() {
   if (!isAdmin()) return;
 
@@ -184,6 +142,7 @@ async function addGrau() {
   carregar();
 }
 
+// 📊 render
 async function carregar() {
   const { data } = await client.from("atletas").select("*");
 
@@ -212,10 +171,3 @@ async function carregar() {
     lista.appendChild(div);
   }
 }
-
-carregar();
-
-</script>
-
-</body>
-</html>
