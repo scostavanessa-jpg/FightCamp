@@ -11,6 +11,7 @@
     input, button { margin: 5px; padding: 10px; border-radius: 6px; border: none; }
     button { background: #00c853; color: #fff; cursor: pointer; }
     .card { background: #1e1e1e; padding: 10px; margin-top: 10px; border-radius: 8px; }
+    .hidden { display: none; }
   </style>
 </head>
 
@@ -24,6 +25,8 @@
 <button onclick="login()">Entrar</button>
 
 <hr>
+
+<div id="adminArea">
 
 <h2>Cadastro</h2>
 <input id="nome" placeholder="Nome">
@@ -50,40 +53,81 @@
 <input id="grau" placeholder="Grau">
 <button onclick="addGrau()">Salvar Grau</button>
 
+</div>
+
+<hr>
+
 <div id="lista"></div>
 
 <script>
+
+const ADMIN_EMAIL = "SEU_EMAIL_AQUI"; // <<< COLOCA SEU EMAIL
+
 const client = window.supabase.createClient(
   "https://dvqomwivyrjckkdyblof.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2cW9td2l2eXJqY2trZHlibG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzUwOTEsImV4cCI6MjA5MjgxMTA5MX0.PPnlsqG__lUbw_SCOGzCPgo95GgbZD5zSJbVg3scQLs"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 );
+
+let usuarioLogado = null;
 
 async function login() {
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
 
-  const { error } = await client.auth.signInWithPassword({ email, password: senha });
+  const { data, error } = await client.auth.signInWithPassword({
+    email,
+    password: senha
+  });
 
   if (error) return alert("Erro login");
+
+  usuarioLogado = data.user;
+
+  aplicarPermissoes();
+  carregar();
+
   alert("Logado 🔥");
 }
 
+function isAdmin() {
+  return usuarioLogado?.email === ADMIN_EMAIL;
+}
+
+function aplicarPermissoes() {
+  if (!isAdmin()) {
+    document.getElementById("adminArea").classList.add("hidden");
+  }
+}
+
 async function salvar() {
+  if (!isAdmin()) return;
+
   const nome = document.getElementById("nome").value;
   const peso = parseFloat(document.getElementById("peso").value);
   const meta = parseFloat(document.getElementById("meta").value);
 
-  await client.from("atletas").insert([{ nome, peso_atual: peso, peso_meta: meta }]);
+  await client.from("atletas").insert([
+    { nome, peso_atual: peso, peso_meta: meta }
+  ]);
+
   carregar();
 }
 
 async function presencaManual() {
+  if (!isAdmin()) return;
+
   const nome = document.getElementById("nomeManual").value;
 
-  const { data: atleta } = await client.from("atletas").select("*").eq("nome", nome).single();
+  const { data: atleta } = await client
+    .from("atletas")
+    .select("*")
+    .eq("nome", nome)
+    .single();
+
   if (!atleta) return alert("Atleta não encontrado");
 
   await client.from("presencas").insert([{ atleta_id: atleta.id }]);
+
   carregar();
 }
 
@@ -93,6 +137,8 @@ async function marcarPresenca(id) {
 }
 
 async function importarCSV() {
+  if (!isAdmin()) return;
+
   const file = document.getElementById("fileInput").files[0];
   if (!file) return alert("Seleciona arquivo");
 
@@ -120,6 +166,8 @@ async function importarCSV() {
 }
 
 async function addGrau() {
+  if (!isAdmin()) return;
+
   const nome = document.getElementById("nomeGrau").value;
   const grau = document.getElementById("grau").value;
 
@@ -133,7 +181,6 @@ async function addGrau() {
 
   await client.from("atletas").update({ grau }).eq("id", atleta.id);
 
-  alert("Grau atualizado");
   carregar();
 }
 
@@ -167,6 +214,7 @@ async function carregar() {
 }
 
 carregar();
+
 </script>
 
 </body>
