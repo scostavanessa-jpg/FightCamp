@@ -18,6 +18,13 @@
 
 <h1>🥋 FightCamp Manager</h1>
 
+<h2>Login</h2>
+<input id="email" placeholder="Email">
+<input id="senha" type="password" placeholder="Senha">
+<button onclick="login()">Entrar</button>
+
+<hr>
+
 <input id="nome" placeholder="Nome">
 <input id="peso" placeholder="Peso">
 <input id="meta" placeholder="Meta">
@@ -30,6 +37,23 @@ const client = window.supabase.createClient(
   "https://dvqomwivyrjckkdyblof.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2cW9td2l2eXJqY2trZHlibG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMzUwOTEsImV4cCI6MjA5MjgxMTA5MX0.PPnlsqG__lUbw_SCOGzCPgo95GgbZD5zSJbVg3scQLs"
 );
+
+async function login() {
+  const email = document.getElementById("email").value;
+  const senha = document.getElementById("senha").value;
+
+  const { error } = await client.auth.signInWithPassword({
+    email,
+    password: senha
+  });
+
+  if (error) {
+    alert("Erro no login ❌");
+    return;
+  }
+
+  alert("Logado com sucesso 🔥");
+}
 
 async function salvar() {
   const nome = document.getElementById("nome").value;
