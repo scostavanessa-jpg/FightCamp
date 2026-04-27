@@ -25,10 +25,30 @@
 
 <hr>
 
+<h2>Cadastro</h2>
 <input id="nome" placeholder="Nome">
 <input id="peso" placeholder="Peso">
 <input id="meta" placeholder="Meta">
 <button onclick="salvar()">Salvar</button>
+
+<hr>
+
+<h2>Importar Presenças</h2>
+<input type="file" id="fileInput">
+<button onclick="importarCSV()">Importar CSV</button>
+
+<hr>
+
+<h2>Lançamento Manual</h2>
+<input id="nomeManual" placeholder="Nome">
+<button onclick="presencaManual()">Adicionar Presença</button>
+
+<hr>
+
+<h2>Adicionar Grau</h2>
+<input id="nomeGrau" placeholder="Nome">
+<input id="grau" placeholder="Grau">
+<button onclick="addGrau()">Salvar Grau</button>
 
 <div id="lista"></div>
 
@@ -42,17 +62,10 @@ async function login() {
   const email = document.getElementById("email").value;
   const senha = document.getElementById("senha").value;
 
-  const { error } = await client.auth.signInWithPassword({
-    email,
-    password: senha
-  });
+  const { error } = await client.auth.signInWithPassword({ email, password: senha });
 
-  if (error) {
-    alert("Erro no login ❌");
-    return;
-  }
-
-  alert("Logado com sucesso 🔥");
+  if (error) return alert("Erro login");
+  alert("Logado 🔥");
 }
 
 async function salvar() {
@@ -60,28 +73,67 @@ async function salvar() {
   const peso = parseFloat(document.getElementById("peso").value);
   const meta = parseFloat(document.getElementById("meta").value);
 
-  const { error } = await client.from("atletas").insert([
-    { nome, peso_atual: peso, peso_meta: meta }
-  ]);
+  await client.from("atletas").insert([{ nome, peso_atual: peso, peso_meta: meta }]);
+  carregar();
+}
 
-  if (error) {
-    alert("Erro: " + error.message);
-    return;
-  }
+async function presencaManual() {
+  const nome = document.getElementById("nomeManual").value;
 
+  const { data: atleta } = await client.from("atletas").select("*").eq("nome", nome).single();
+  if (!atleta) return alert("Atleta não encontrado");
+
+  await client.from("presencas").insert([{ atleta_id: atleta.id }]);
   carregar();
 }
 
 async function marcarPresenca(id) {
-  const { error } = await client.from("presencas").insert([
-    { atleta_id: id }
-  ]);
+  await client.from("presencas").insert([{ atleta_id: id }]);
+  carregar();
+}
 
-  if (error) {
-    alert("Já marcou hoje 👀");
-    return;
+async function importarCSV() {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) return alert("Seleciona arquivo");
+
+  const text = await file.text();
+  const linhas = text.split("\n");
+
+  for (let i = 1; i < linhas.length; i++) {
+    const [nome, data] = linhas[i].split(",");
+
+    const { data: atleta } = await client
+      .from("atletas")
+      .select("*")
+      .eq("nome", nome.trim())
+      .single();
+
+    if (!atleta) continue;
+
+    await client.from("presencas").insert([
+      { atleta_id: atleta.id, data: data.trim() }
+    ]);
   }
 
+  alert("Importado 🚀");
+  carregar();
+}
+
+async function addGrau() {
+  const nome = document.getElementById("nomeGrau").value;
+  const grau = document.getElementById("grau").value;
+
+  const { data: atleta } = await client
+    .from("atletas")
+    .select("*")
+    .eq("nome", nome)
+    .single();
+
+  if (!atleta) return alert("Atleta não encontrado");
+
+  await client.from("atletas").update({ grau }).eq("id", atleta.id);
+
+  alert("Grau atualizado");
   carregar();
 }
 
@@ -92,23 +144,21 @@ async function carregar() {
   lista.innerHTML = "";
 
   for (const a of data) {
-
     const { data: pres } = await client
       .from("presencas")
       .select("*")
       .eq("atleta_id", a.id);
 
     const total = pres ? pres.length : 0;
-    const meta = 70;
-    const progresso = Math.round((total/meta)*100);
 
     const div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
       <b>${a.nome}</b><br>
+      Grau: ${a.grau || 0}<br>
       Peso: ${a.peso_atual}kg<br>
-      Treinos: ${total}/${meta} (${progresso}%)<br>
+      Treinos: ${total}<br>
       <button onclick="marcarPresenca('${a.id}')">Treinei hoje</button>
     `;
 
